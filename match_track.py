@@ -81,8 +81,14 @@ df_possibilities = df_possibilities.fillna("")
 
 
 
-for name in names:
-    df_possibilities.loc[name, list(any_track_runner[name])] = "x"
+# for name in names:
+#     df_possibilities.loc[name, list(any_track_runner[name])] = "x"
+
+for i_n, name in enumerate(names):
+    for track in any_track_runner[name]:
+        df_possibilities.loc[name, track] = weights[i_n, list(tracks).index(track)]
+        
+
     
 
 
