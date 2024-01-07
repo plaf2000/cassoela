@@ -76,9 +76,17 @@ for run_i, tr_i in zip(*best_matching):
 
 print(dict(any_track_runner))
 
-df_possibilities = pd.DataFrame()
+df_possibilities = pd.DataFrame(columns=tracks, index=names)
+df_possibilities = df_possibilities.fillna("")
+
+
 
 for name in names:
-    tracks_ = any_track_runner[name]
-    for track in tracks:
-        df_possibilities.loc[name, track] = True
+    df_possibilities.loc[name, list(any_track_runner[name])] = "x"
+    
+
+
+df_possibilities.to_csv("possibilities.csv", sep="\t")
+print(df_possibilities)
+
+
