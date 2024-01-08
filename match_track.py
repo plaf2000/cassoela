@@ -32,16 +32,14 @@ best_score = weights[best_matching].sum()
 
 track_runner = {}
 
+combos = defaultdict(list)
+
 for runner_i, track_i in zip(*best_matching):
-    track_runner[names[runner_i]] = tracks[track_i]
-    track_runner[tracks[track_i]] = names[runner_i]
+    combos[names[runner_i]].append(tracks[track_i])
     any_track_runner[names[runner_i]].add(tracks[track_i])
     any_track_runner[tracks[track_i]].add(names[runner_i])
 
-print("========== Best combo ============")
-for n in names:
-    print(f"{n}:", track_runner[n])
-print()
+
 
 
 for run_i, tr_i in zip(*best_matching):
@@ -58,15 +56,9 @@ for run_i, tr_i in zip(*best_matching):
         old_score = score
 
         for runner_i, track_i in zip(*matching):
-            track_runner[names[runner_i]] = tracks[track_i]
-            track_runner[tracks[track_i]] = names[runner_i]
+            combos[names[runner_i]].append(tracks[track_i])
             any_track_runner[names[runner_i]].add(tracks[track_i])
             any_track_runner[tracks[track_i]].add(names[runner_i])
-
-        print("========== Other possible combo ============")
-        for n in names:
-            print(f"{n}:", track_runner[n])
-        print()
 
 
         tr_i_ = matching[1][run_i]
@@ -74,25 +66,27 @@ for run_i, tr_i in zip(*best_matching):
         new_weights[run_i, tr_i_] = 0
         
 
-print(dict(any_track_runner))
 
 df_possibilities = pd.DataFrame(columns=tracks, index=names)
 df_possibilities = df_possibilities.fillna("")
 
 
-
-# for name in names:
-#     df_possibilities.loc[name, list(any_track_runner[name])] = "x"
-
 for i_n, name in enumerate(names):
     for track in any_track_runner[name]:
         df_possibilities.loc[name, track] = weights[i_n, list(tracks).index(track)]
+
+
+df_combos = pd.DataFrame(combos)
+df_combos.to_csv("combos.csv")
+
+print(f"Found {len(df_combos)} optimal combinations.")
+
+
         
 
     
 
 
 df_possibilities.to_csv("possibilities.csv", sep="\t")
-print(df_possibilities)
 
 
