@@ -1,0 +1,6 @@
+geopy
+scipy
+numpy
+gpxpy
+ipykernel
+pandas
