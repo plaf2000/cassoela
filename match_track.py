@@ -1,11 +1,13 @@
 from scipy.optimize import linear_sum_assignment
 from collections import defaultdict
+from itertools import filterfalse, product
 import re
 import pandas as pd
 import numpy as np
 
 
-df = pd.read_csv("cassoela - Form.csv")
+df = pd.read_csv("cassoela2025_11runners.csv")
+# df = pd.read_csv("test.csv")
 tracks = np.array([c for c in df.columns if "Strecke" in c])
 df_subset = df[["Name"] + list(tracks)]
 tracks = np.array([re.search(r"\[(.+)\]", t).group(1) for t in tracks])
@@ -13,15 +15,27 @@ tracks = np.array([re.search(r"\[(.+)\]", t).group(1) for t in tracks])
 
 df_subnp = df_subset.to_numpy()
 names = df_subnp[:,0]
+n_runners = len(names)
 preferences = df_subnp[:,1:]
 
+# degrees = {
+#     "Really don't want": 0,
+#     "Prefer not": 1,
+#     "Can": 2,
+#     "Would like": 3,
+#     "Would really love": 4,
+# }
+
 degrees = {
-    "Really don't want": 0,
-    "Prefer not": 1,
-    "Can": 2,
-    "Would like": 3,
-    "Would really love": 4,
+    "😫": 0,
+    "🙁": 1,
+    "😐": 2, 
+    "🙂": 3,
+    "😄": 4,
 }
+
+min_val = min(d for d in degrees.values())
+max_val = max(d for d in degrees.values())
 
 weights = np.zeros_like(preferences, dtype=np.int8)
 for txt, val in degrees.items():
@@ -45,28 +59,29 @@ for runner_i, track_i in zip(*best_matching):
 
 
 
-for run_i, tr_i in zip(*best_matching):
-    new_weights = weights.copy()
-    new_weights[run_i, tr_i] = 0
+print("Best score is:", best_score, "which means", best_score/n_runners, "per runner")
 
-    while True:
-        track_runner = {}
-        matching = linear_sum_assignment(new_weights, True)
-        score = new_weights[matching].sum() 
-        if score < best_score:
-            break
+print("Max possible score per user")
+for n, s in zip(names, np.max(weights, axis=1)):
+    print(n,s)
 
-        old_score = score
+if all(np.max(weights, axis=1) == weights[best_matching]):
+    print("The algo picks the best option for all runners")
+else:
+    print("Algo doesn't pick the best option for some runners. Some runners are fighting for the same track.")
 
-        for runner_i, track_i in zip(*matching):
-            combos[names[runner_i]].append(tracks[track_i])
-            any_track_runner[names[runner_i]].add(tracks[track_i])
-            any_track_runner[tracks[track_i]].add(names[runner_i])
+bw = weights[best_matching].reshape(n_runners, 1)
+is_weight_best = weights == bw
 
+ixs = np.nonzero(is_weight_best)
+ixs = (np.split(ixs[1], np.unique(ixs[0], return_index=True)[1]))[1:]
+print(ixs)
 
-        tr_i_ = matching[1][run_i]
-        
-        new_weights[run_i, tr_i_] = 0
+combs = filterfalse(lambda x: len(x) != len(set(x)), product(*ixs))
+
+max_combs = 10000
+for comb, comb_i in zip(combs, range(max_combs)):
+    print(comb_i, comb)
         
 
 
@@ -82,7 +97,7 @@ for i_n, name in enumerate(names):
 df_combos = pd.DataFrame(combos)
 df_combos.to_csv("combos.csv")
 
-print(f"Found {len(df_combos)} optimal combinations.")
+print(f"Found {comb_i+1} optimal combinations.")
 
 
 
