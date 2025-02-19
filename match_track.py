@@ -7,6 +7,63 @@ import pandas as pd
 import numpy as np
 
 
+def product_without_repetitions(*iterables):
+    """
+    Efficiently calculate products between pools that do not contain repetitions.
+    """
+    pools = [tuple(pool) for pool in iterables]
+
+    # The counter is used to give an ordering to the products, so that the products can be returned one by one.
+    prod_counter = [0] * len(pools)
+    prod_counter_max = [len(pool)-1 for pool in pools]
+
+    # Pools with most elements need to be in the least significant part of the counter for efficiency reason.
+    pools_order = np.argsort(prod_counter_max)
+    prod_counter_max = sorted(prod_counter_max)
+
+    def inc_counter_at_pos(pos):
+        """
+        Increment the counter at position `pos` by one. If it already reached the max, try to increment more significant part.
+        If also that fail, return False (impossible to increment, max value reached).
+        """
+        while pos >= 0:
+            if prod_counter[pos] < prod_counter_max[pos]:
+                break
+            pos -= 1
+        if pos == -1:
+            return False
+        prod_counter[pos] += 1
+        for j in range(pos+1, len(prod_counter)):
+            prod_counter[j] = 0
+        return True            
+
+    def inc_counter():
+        """
+        Increment counter by one (smallest unit).
+        """
+        for i, (cc, ccm) in enumerate(zip(prod_counter[::-1], prod_counter_max[::-1])):
+            if cc < ccm:
+                return inc_counter_at_pos(len(prod_counter) - i - 1)
+
+    incremented = True
+    while incremented:
+        prod = [None] * len(pools)
+        for prod_pool_i, pool_i in enumerate(pools_order):
+            pool_el_i = prod_counter[prod_pool_i]
+            pool = pools[pool_i]
+            pool_el = pool[pool_el_i]
+            if pool_el in prod:
+                # Value of the pool already contained in the product, try the next one from the pool.
+                incremented = inc_counter_at_pos(prod_pool_i)
+                break
+            prod[pool_i] = pool_el
+        if not None in prod:
+            # Try next product and return the found one.
+            incremented = inc_counter()
+            yield prod
+
+COMBINATIONS_LIMIT = 1000
+
 df = pd.read_csv("cassoela2025_11runners.csv")
 # df = pd.read_csv("test.csv")
 tracks = np.array([c for c in df.columns if "Strecke" in c])
@@ -52,14 +109,6 @@ track_runner = {}
 
 combos = defaultdict(list)
 
-for runner_i, track_i in zip(*best_matching):
-    combos[names[runner_i]].append(tracks[track_i])
-    any_track_runner[names[runner_i]].add(tracks[track_i])
-    any_track_runner[tracks[track_i]].add(names[runner_i])
-
-
-
-
 print("Best score is:", best_score, "which means", best_score/n_runners, "per runner")
 
 print("Max possible score per user")
@@ -71,88 +120,29 @@ if all(np.max(weights, axis=1) == weights[best_matching]):
 else:
     print("Algo doesn't pick the best option for some runners. Some runners are fighting for the same track.")
 
-bw = weights[best_matching].reshape(n_runners, 1)
-is_weight_best = weights == bw
+best_weights = weights[best_matching].reshape(n_runners, 1)
+is_weight_best = weights == best_weights
 
-ixs = np.nonzero(is_weight_best)
-ixs = (np.split(ixs[1], np.unique(ixs[0], return_index=True)[1]))[1:]
-print(ixs)
+is_favourite = np.nonzero(is_weight_best)
+favourites = (np.split(is_favourite[1], np.unique(is_favourite[0], return_index=True)[1]))[1:]
 
+p = islice(product_without_repetitions(*favourites), COMBINATIONS_LIMIT)
+combos = np.array(list(p))
+tot = len(combos)
+print(f"Found {tot} optimal combinations.")
 
-def custom_prod(*iterables):
-    pools = [tuple(pool) for pool in iterables]
+tracks_i, tracks_count = np.unique(combos.flatten(), return_counts=True)
 
-    comb_counter = [0] * len(pools)
-    comb_counter_max = [len(pool)-1 for pool in pools]
-    pools_order = np.argsort(comb_counter_max)
-    comb_counter_max = sorted(comb_counter_max)
+plt.bar(tracks_i, tracks_count)
+plt.show()
 
-    def inc_counter_at_pos(pos):
-        while pos >= 0:
-            if comb_counter[pos] < comb_counter_max[pos]:
-                break
-            pos -= 1
-        if pos == -1:
-            return False
-        comb_counter[pos] += 1
-        for j in range(pos+1, len(comb_counter)):
-            comb_counter[j] = 0
-        return True            
-
-    def inc_counter():
-        for i, (cc, ccm) in enumerate(zip(comb_counter[::-1], comb_counter_max[::-1])):
-            if cc < ccm:
-                return inc_counter_at_pos(len(comb_counter) - i - 1)
-
-    incremented = True
-    with open("out.txt", "w") as fp:
-        while incremented:
-            prod = [None] * len(pools)
-            for comb_pool_i, pool_i in enumerate(pools_order):
-                pool_el_i = comb_counter[comb_pool_i]
-                pool = pools[pool_i]
-                pool_el = pool[pool_el_i]
-                if pool_el in prod:
-                    incremented = inc_counter_at_pos(comb_pool_i)
-                    break
-                prod[pool_i] = pool_el
-                # print(comb_counter, [pools[i][j] for i, j in enumerate(comb_counter)], file=fp, flush=True)
-            if not None in prod:
-                incremented = inc_counter()
-                yield prod
-
-print(list(custom_prod((0,1),(0,2))))
-
-print("skibidi")
-max_combs = 10000
-p = islice(custom_prod(*ixs), max_combs)
-i = filterfalse(lambda x: len(x) != len(set(x)), p)
-combs = np.array(list(p))
-
-        
-
-
-df_possibilities = pd.DataFrame(columns=tracks, index=names)
-df_possibilities = df_possibilities.fillna("")
-
-
-for i_n, name in enumerate(names):
-    for track in any_track_runner[name]:
-        df_possibilities.loc[name, track] = weights[i_n, list(tracks).index(track)]
-
-
-df_combos = pd.DataFrame(combos)
+df_combos = pd.DataFrame(combos+1)
+df_combos = df_combos.rename(columns = {i: names[i] for i in df_combos.columns})
 df_combos.to_csv("combos.csv")
 
-print(f"Found {len(combs)} optimal combinations.")
+for i, name in enumerate(names):
+    print(np.unique(combos[:, i], return_counts=True))
 
 
-
-if "Missing" in df_combos:
-    with open("missing.txt", "w") as fp:
-        fp.write("\n".join(sorted(df_combos["Missing"].unique())))
-
-
-df_possibilities.to_csv("possibilities.csv", sep="\t")
 
 
