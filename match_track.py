@@ -1,6 +1,5 @@
 from scipy.optimize import linear_sum_assignment
-from collections import defaultdict
-from itertools import filterfalse, product, islice
+from itertools import islice
 from matplotlib import pyplot as plt
 import re
 import pandas as pd
@@ -24,7 +23,7 @@ def product_without_repetitions(*iterables):
     def inc_counter_at_pos(pos):
         """
         Increment the counter at position `pos` by one. If it already reached the max, try to increment more significant part.
-        If also that fail, return False (impossible to increment, max value reached).
+        If also that fails, return False (impossible to increment, max value reached).
         """
         while pos >= 0:
             if prod_counter[pos] < prod_counter_max[pos]:
@@ -100,15 +99,8 @@ weights = np.zeros_like(preferences, dtype=np.int8)
 for txt, val in degrees.items():
     weights[preferences == txt] = val
 
-
-
-any_track_runner = defaultdict(set)
 best_matching = linear_sum_assignment(weights, True)
 best_score = weights[best_matching].sum()
-
-track_runner = {}
-
-combos = defaultdict(list)
 
 print("Best score is:", best_score, "which means", best_score/n_runners, "per runner")
 
