@@ -63,6 +63,7 @@ def product_without_repetitions(*iterables):
             yield prod
 
 COMBINATIONS_LIMIT = 1000
+SHOW = True
 
 df = pd.read_csv("cassoela2025_11runners.csv")
 # df = pd.read_csv("test.csv")
@@ -116,7 +117,7 @@ for n, s in zip(names, np.max(weights, axis=1)):
     print(n,s)
 
 if all(np.max(weights, axis=1) == weights[best_matching]):
-    print("The algo picks the best option for all runners")
+    print("The algo picks the best option for all runners.")
 else:
     print("Algo doesn't pick the best option for some runners. Some runners are fighting for the same track.")
 
@@ -133,15 +134,38 @@ print(f"Found {tot} optimal combinations.")
 
 tracks_i, tracks_count = np.unique(combos.flatten(), return_counts=True)
 
-plt.bar(tracks_i, tracks_count)
-plt.show()
+fig, ax = plt.subplots()
+ax.bar(tracks_i + 1, tracks_count, color="black")
+ax.set_xlabel("Track number")
+ax.set_ylabel("Number of combinations")
+ax.set_title("Number of combinations in which the track is present")
+if SHOW:
+    plt.show()
+fig.tight_layout()
+fig.savefig("num_combos.png")
 
 df_combos = pd.DataFrame(combos+1)
 df_combos = df_combos.rename(columns = {i: names[i] for i in df_combos.columns})
 df_combos.to_csv("combos.csv")
 
+heatmap = np.zeros((n_runners, len(tracks)))
+
 for i, name in enumerate(names):
-    print(np.unique(combos[:, i], return_counts=True))
+    tracks_i, tracks_count = np.unique(combos[:, i], return_counts=True)
+    heatmap[i, tracks_i] = tracks_count
+
+fig, ax = plt.subplots()
+im = ax.imshow(heatmap, cmap="binary")
+cbar = ax.figure.colorbar(im, ax=ax)
+ax.set_yticks(range(n_runners), names)
+ax.set_xticks(range(len(tracks)), [str(i+1) for i in range(len(tracks))])
+ax.set_xlabel("Track number")
+ax.set_ylabel("Runner")
+ax.set_title("Combinations Heatmap")
+
+if SHOW:
+    plt.show()
+fig.savefig("combos_heatmap.png")
 
 
 
